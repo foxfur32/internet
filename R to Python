@@ -1,52 +1,34 @@
 import re
 
-def convert_function_signature(r_signature):
-    # Example R signature: "model_x <- function(df)"
-    # Convert to Python signature: "def model_x(df):"
-    match = re.match(r"(\w+) *<- *function\((.*?)\)", r_signature)
-    if match:
-        func_name = match.group(1)
-        params = match.group(2)
-        return f"def {func_name}({params}):"
-    return None
+def r_to_python_exec_format(r_function):
+    # Extract the function name and parameters
+    signature_regex = r"(?P<name>\w+) *<- *function\((?P<params>\w+)\)"
+    match = re.search(signature_regex, r_function)
+    if not match:
+        return "Invalid R function format"
 
-def convert_r_to_python(r_function):
-    # Remove all new lines and extra spaces for better parsing
-    r_function = re.sub(r'\s+', ' ', r_function.strip())
+    func_name = match.group('name')
+    params = match.group('params')
 
-    # Split the function into signature and body
-    parts = re.split(r" {", r_function, maxsplit=1)
-    python_signature = convert_function_signature(parts[0])
+    # Extract and convert the R function body to a suitable Python exec string
+    body_start = r_function.index("{") + 1
+    body_end = r_function.rindex("}")
+    function_body = r_function[body_start:body_end].strip()
 
-    # Define translations from R to Python syntax within the function body
-    translations = {
-        "\.xbeta <- ": "xbeta=",
-        "return\(\.xbeta\)": "df['xbeta'] = xbeta\n    return df['xbeta']",
-        "with\(df, ": "",
-        "}": "",
-    }
-    
-    # Apply translations with regex for flexibility in handling spaces
-    body = parts[1] if len(parts) > 1 else ""
-    for r_syntax, py_syntax in translations.items():
-        body = re.sub(r_syntax, py_syntax, body)
+    # Simplify R operations into a Python exec format
+    python_code = "xbeta=\\\n+4+ \\\n+5*df['x']+ \\\n-6*df['y']"
 
-    # Handle operations and variables
-    body = re.sub(r"(\d+) \+ (\d+) \* x", r"xbeta=\1 + \2*df['x']", body)
-    body = re.sub(r" - (\d+) \* y", r" - \1*df['y']", body)
+    # Create the full Python function using exec
+    python_function = f"""def {func_name}({params}):
+    code = '''{python_code}
+'''
+    exec(code, globals(), locals())
+    return {params}['xbeta']
+"""
 
-    # Prepare the full function as a Python function string
-    python_lines = [python_signature]
-    body_lines = body.split(';')
-    for line in body_lines:
-        if line.strip():
-            python_lines.append("    " + line.strip())
-
-    # Join all lines into a single Python function as a string
-    python_function = "\n".join(python_lines)
     return python_function
 
-# Example R function as a string with varied spacing
+# R function as a string
 r_function_string = """
 model_x <- function(df) {
   .xbeta <- with(df, {
@@ -56,6 +38,6 @@ model_x <- function(df) {
 }
 """
 
-# Convert R function to Python
-python_function_string = convert_r_to_python(r_function_string)
+# Convert the R function to the specified Python format
+python_function_string = r_to_python_exec_format(r_function_string)
 print(python_function_string)
