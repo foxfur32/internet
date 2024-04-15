@@ -1,0 +1,48 @@
+import re
+
+def convert_r_to_python(r_function):
+    # Simplify function by removing excessive whitespaces and handling line breaks more robustly
+    r_function = re.sub(r'\s+', ' ', r_function)  # Collapse multiple spaces into one
+    r_function = r_function.replace("{ ", "{").replace(" }", "}")
+
+    # Define translations from R to Python syntax within the function body
+    translations = {
+        "with\(df, {": "code = '''xbeta=",
+        "\.xbeta <- ": "+",
+        "return\(\.xbeta\)": "df['xbeta'] = xbeta\n    return df['xbeta']",
+        "}": "'''",
+        " \* ": "*df['",
+        " \+ ": "+",
+        " - ": "-",
+    }
+    
+    # Apply translations with regex for more flexibility
+    python_lines = ["def model_x(df):"]
+    for r_syntax, py_syntax in translations.items():
+        r_function = re.sub(r_syntax, py_syntax, r_function)
+
+    # Handle variable names at the end of replacements
+    r_function = re.sub(r"\*df\['([a-zA-Z_]+)'\]", r"*df['\1']", r_function)  # Ensuring correct closing of brackets
+
+    # Break into lines after conversions for formatting the output
+    lines = r_function.split('\n')
+    for line in lines:
+        python_lines.append("    " + line.strip())  # Maintain indentation
+
+    # Join all lines into a single Python function as a string
+    python_function = "\n".join(python_lines)
+    return python_function
+
+# Example R function as a string with varied spacing
+r_function_string = """
+model_x <- function(df) {
+  .xbeta <- with(df, {
+    4 +    5 * x - 6 *   y
+  })
+  return(.xbeta)
+}
+"""
+
+# Convert R function to Python
+python_function_string = convert_r_to_python(r_function_string)
+print(python_function_string)
