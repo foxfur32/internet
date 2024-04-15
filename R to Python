@@ -1,33 +1,46 @@
 import re
 
+def convert_function_signature(r_signature):
+    # Example R signature: "model_x <- function(df)"
+    # Convert to Python signature: "def model_x(df):"
+    match = re.match(r"(\w+) *<- *function\((.*?)\)", r_signature)
+    if match:
+        func_name = match.group(1)
+        params = match.group(2)
+        return f"def {func_name}({params}):"
+    return None
+
 def convert_r_to_python(r_function):
-    # Simplify function by removing excessive whitespaces and handling line breaks more robustly
-    r_function = re.sub(r'\s+', ' ', r_function)  # Collapse multiple spaces into one
-    r_function = r_function.replace("{ ", "{").replace(" }", "}")
+    # Remove all new lines and extra spaces for better parsing
+    r_function = re.sub(r'\s+', ' ', r_function.strip())
+
+    # Split the function into signature and body
+    parts = re.split(r" {", r_function, maxsplit=1)
+    python_signature = convert_function_signature(parts[0])
 
     # Define translations from R to Python syntax within the function body
     translations = {
-        "with\(df, {": "code = '''xbeta=",
-        "\.xbeta <- ": "+",
+        "\.xbeta <- ": "xbeta=",
         "return\(\.xbeta\)": "df['xbeta'] = xbeta\n    return df['xbeta']",
-        "}": "'''",
-        " \* ": "*df['",
-        " \+ ": "+",
-        " - ": "-",
+        "with\(df, ": "",
+        "}": "",
     }
     
-    # Apply translations with regex for more flexibility
-    python_lines = ["def model_x(df):"]
+    # Apply translations with regex for flexibility in handling spaces
+    body = parts[1] if len(parts) > 1 else ""
     for r_syntax, py_syntax in translations.items():
-        r_function = re.sub(r_syntax, py_syntax, r_function)
+        body = re.sub(r_syntax, py_syntax, body)
 
-    # Handle variable names at the end of replacements
-    r_function = re.sub(r"\*df\['([a-zA-Z_]+)'\]", r"*df['\1']", r_function)  # Ensuring correct closing of brackets
+    # Handle operations and variables
+    body = re.sub(r"(\d+) \+ (\d+) \* x", r"xbeta=\1 + \2*df['x']", body)
+    body = re.sub(r" - (\d+) \* y", r" - \1*df['y']", body)
 
-    # Break into lines after conversions for formatting the output
-    lines = r_function.split('\n')
-    for line in lines:
-        python_lines.append("    " + line.strip())  # Maintain indentation
+    # Prepare the full function as a Python function string
+    python_lines = [python_signature]
+    body_lines = body.split(';')
+    for line in body_lines:
+        if line.strip():
+            python_lines.append("    " + line.strip())
 
     # Join all lines into a single Python function as a string
     python_function = "\n".join(python_lines)
@@ -37,7 +50,7 @@ def convert_r_to_python(r_function):
 r_function_string = """
 model_x <- function(df) {
   .xbeta <- with(df, {
-    4 +    5 * x - 6 *   y
+    4 + 5 * x - 6 * y
   })
   return(.xbeta)
 }
