@@ -1,0 +1,57 @@
+import pandas as pd
+import re
+
+# Example dataframe
+data = {'adjusted_metrics': ['abcdefg', 'abcdedg(1,2,3)', 'hijklmn', 'mnopqrs(4,5,6)']}
+df = pd.DataFrame(data)
+
+# Function to split the adjusted_metrics column
+def split_adjusted_metrics(row):
+    # Check if there is a pattern like (num1,num2,num3) in the value
+    match = re.search(r'\(([^)]+)\)', row['adjusted_metrics'])
+    if match:
+        # Return the part with the numbers and remove the (num1,num2,num3) from the original
+        numbers = match.group(0)
+        cleaned_value = re.sub(r'\([^)]+\)', '', row['adjusted_metrics']).strip()
+        return pd.Series([cleaned_value, numbers])
+    else:
+        # If no pattern is found, keep the original value and None for the numbers column
+        return pd.Series([row['adjusted_metrics'], None])
+
+# Apply the function to split the dataframe
+df[['adjusted_metrics', 'metrics_numbers']] = df.apply(split_adjusted_metrics, axis=1)
+
+# Display the updated dataframe
+print(df)
+
+
+import pandas as pd
+import re
+
+# Example dataframe
+data = {'adjusted_metrics': ['abcdefg', 'abcdedg(1,2,3)', 'hijklmn', 'mnopqrs(4,5,6)']}
+df = pd.DataFrame(data)
+
+# Function to split the adjusted_metrics column and the numbers
+def split_adjusted_metrics(row):
+    # Check if there is a pattern like (num1,num2,num3) in the value
+    match = re.search(r'\(([^)]+)\)', row['adjusted_metrics'])
+    if match:
+        # Extract the numbers part and split them into three components
+        numbers = match.group(1).split(',')
+        cleaned_value = re.sub(r'\([^)]+\)', '', row['adjusted_metrics']).strip()
+        return pd.Series([cleaned_value] + numbers)
+    else:
+        # If no pattern is found, keep the original value and set None for the three columns
+        return pd.Series([row['adjusted_metrics'], None, None, None])
+
+# Apply the function to split the dataframe
+df[['adjusted_metrics', 'num1', 'num2', 'num3']] = df.apply(split_adjusted_metrics, axis=1)
+
+# Convert the number columns to numeric if needed
+df['num1'] = pd.to_numeric(df['num1'], errors='coerce')
+df['num2'] = pd.to_numeric(df['num2'], errors='coerce')
+df['num3'] = pd.to_numeric(df['num3'], errors='coerce')
+
+# Display the updated dataframe
+print(df)
