@@ -61,9 +61,10 @@ def adjust_group_size(group):
         num_needed = 50 - len(group)
         duplicated_rows = group.sample(n=num_needed, replace=True, random_state=42).copy()
         
-        # Assign new loan IDs with suffixes
-        for i, index in enumerate(duplicated_rows.index):
-            duplicated_rows.loc[index, 'loan_id'] += f'_{i+1}'
+        # Assign new loan IDs with a proper numeric suffix
+        duplicated_rows['loan_id'] = [
+            f"{original_id}_{i+1}" for i, original_id in enumerate(duplicated_rows['loan_id'])
+        ]
         
         return pd.concat([group, duplicated_rows])
     return group
