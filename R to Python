@@ -60,11 +60,22 @@ def adjust_group_size(group):
     elif len(group) < 50:
         num_needed = 50 - len(group)
         duplicated_rows = group.sample(n=num_needed, replace=True, random_state=42).copy()
-        
-        # Assign new loan IDs with a proper numeric suffix
-        duplicated_rows['loan_id'] = [
-            f"{original_id}_{i+1}" for i, original_id in enumerate(duplicated_rows['loan_id'])
-        ]
+
+        # Count occurrences of each loan_id in the duplicated dataset
+        duplication_counts = duplicated_rows['loan_id'].value_counts()
+
+        # Assign suffixes based on duplication count
+        new_loan_ids = []
+        suffix_track = {}  # To track suffix numbers for each loan_id
+
+        for loan_id in duplicated_rows['loan_id']:
+            if loan_id not in suffix_track:
+                suffix_track[loan_id] = 1
+            else:
+                suffix_track[loan_id] += 1
+            new_loan_ids.append(f"{loan_id}_{suffix_track[loan_id]}")
+
+        duplicated_rows['loan_id'] = new_loan_ids
         
         return pd.concat([group, duplicated_rows])
     return group
