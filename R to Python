@@ -41,3 +41,36 @@ model_x <- function(df) {
 # Convert the R function to the specified Python format
 python_function_string = r_to_python_exec_format(r_function_string)
 print(python_function_string)
+
+
+import pandas as pd
+import numpy as np
+
+# Sample DataFrame (replace with actual data)
+df = pd.DataFrame({
+    'group': np.random.randint(1, 11, 200),  # Groups from 1 to 10
+    'loan_id': [f'Loan_{i}' for i in range(200)],  # Unique Loan IDs
+    'value': np.random.rand(200)  # Some example values
+})
+
+# Function to process each group
+def adjust_group_size(group):
+    if len(group) > 100:
+        return group.sample(n=100, random_state=42)  # Downsample to 100 if more
+    elif len(group) < 50:
+        num_needed = 50 - len(group)
+        duplicated_rows = group.sample(n=num_needed, replace=True, random_state=42).copy()
+        
+        # Assign new loan IDs with suffixes
+        for i, index in enumerate(duplicated_rows.index):
+            duplicated_rows.loc[index, 'loan_id'] += f'_{i+1}'
+        
+        return pd.concat([group, duplicated_rows])
+    return group
+
+# Apply the function to each group
+df_adjusted = df.groupby('group', group_keys=False).apply(adjust_group_size)
+
+# Display the final dataframe
+import ace_tools as tools
+tools.display_dataframe_to_user(name="Adjusted DataFrame", dataframe=df_adjusted)
